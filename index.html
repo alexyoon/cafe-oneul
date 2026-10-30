@@ -17,6 +17,7 @@
   --brown-d:#6B4128;
   --berry:#AE4652;     /* product names, hearts */
   --sage:#6F8C62;
+  --mint:#5E9F86;    /* 'added' confirmation */
   --line:#E6D7C3;
   --shadow:0 1px 0 rgba(255,255,255,.7) inset, 0 10px 30px -18px rgba(90,56,30,.45);
   --f-script:'Pinyon Script','Snell Roundhand',cursive;
@@ -267,6 +268,12 @@ img.pending{background:radial-gradient(closest-side,var(--line),transparent);bor
 .icons a .badge[data-n="0"]{display:none}
 .disclaim{text-align:center;font-family:var(--f-label);font-size:10px;letter-spacing:.14em;color:var(--ink-2);margin-top:10px}
 
+.btn.added{background:var(--mint)}
+.plus.added{background:var(--mint);color:#fff}
+.flyer{position:fixed;left:0;top:0;width:76px;height:76px;z-index:60;pointer-events:none;filter:drop-shadow(0 10px 14px rgba(80,50,25,.28));will-change:transform}
+@keyframes bump{35%{transform:scale(1.45)}70%{transform:scale(.92)}}
+.badge.bump{animation:bump .5s ease}
+.bagicon-bump{animation:bump .5s ease}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:var(--ink);color:#FFF6EC;padding:11px 18px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:.3s;z-index:50;max-width:calc(100% - 32px);text-align:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 
@@ -371,7 +378,7 @@ img.pending{background:radial-gradient(closest-side,var(--line),transparent);bor
       </div>
       <canvas class="stage3d" id="stage3d" aria-label="카페 오늘 3D 모델 — 드래그해서 돌려보세요"></canvas>
       <div class="stage-cap">come on in ↗</div>
-      <div class="spin-hint">drag to turn the café ↻</div>
+      <div class="spin-hint">move or drag to turn the café ↻</div>
     </div>
 
     <div class="right" id="rightA"></div>
@@ -511,7 +518,25 @@ const st={view:'home',cat:'all',item:null,size:'R',qty:1,ym:{y:2026,m:10},sel:nu
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2200)}
 function count(){return bag.reduce((a,b)=>a+b.qty,0)}
 function badge(){$$('[data-badge]').forEach(b=>{const n=count();b.textContent=n;b.dataset.n=n})}
-function add(id,size,qty=1){const m=BY[id];const s=isDrink(m)?(size||'R'):'-';const f=bag.find(b=>b.id===id&&b.size===s);if(f)f.qty+=qty;else bag.push({id,size:s,qty});saveBag();toast(`${m.ko}${isDrink(m)?' ('+(SIZES.find(x=>x.k===s).ko)+')':''} ${qty}개를 담았어요`);if(st.view==='bag')renderBag()}
+function add(id,size,qty=1,srcEl){const m=BY[id];const s=isDrink(m)?(size||'R'):'-';const f=bag.find(b=>b.id===id&&b.size===s);if(f)f.qty+=qty;else bag.push({id,size:s,qty});
+ store.set('oneul_bag',bag);
+ if(srcEl)flyToBag(id,srcEl,()=>{badge();bumpBag()});else{badge();bumpBag()}
+ if(st.view==='bag')renderBag()}
+function bagTarget(){const vis=e=>{if(!e||e.offsetParent===null&&getComputedStyle(e).position!=='fixed')return false;const r=e.getBoundingClientRect();return r.width>0&&r.bottom>0&&r.top<innerHeight};
+ const foot=document.querySelector('.icons a[data-v="bag"]'),head=document.querySelector('.bagbtn');return vis(foot)?foot:(vis(head)?head:foot||head)}
+function bumpBag(){$$('[data-badge]').forEach(b=>{b.classList.remove('bump');void b.offsetWidth;b.classList.add('bump')});const t=bagTarget();if(t){const sv=t.querySelector('svg');if(sv){sv.classList.remove('bagicon-bump');void sv.offsetWidth;sv.classList.add('bagicon-bump')}}}
+function flyToBag(id,srcEl,done){const tgt=bagTarget();if(!tgt||matchMedia('(prefers-reduced-motion: reduce)').matches||!Element.prototype.animate){done();return}
+ const s=srcEl.getBoundingClientRect(),t=tgt.getBoundingClientRect();const sx=s.left+s.width/2-38,sy=s.top+s.height/2-38;const tx=t.left+t.width/2-38,ty=t.top+t.height/2-38;
+ const img=new Image();img.src=THUMBS[id]||BLANK;img.className='flyer';img.alt='';document.body.appendChild(img);
+ const mx=sx+(tx-sx)*.35,my=Math.min(sy,ty)-110;
+ const a=img.animate([
+  {transform:`translate(${sx}px,${sy}px) scale(.55)`,opacity:0},
+  {transform:`translate(${sx+8}px,${sy-18}px) scale(1.05)`,opacity:1,offset:.14},
+  {transform:`translate(${mx}px,${my}px) scale(.9)`,opacity:1,offset:.5},
+  {transform:`translate(${tx}px,${ty}px) scale(.22)`,opacity:.75}],{duration:950,easing:'cubic-bezier(.4,0,.3,1)'});
+ a.onfinish=()=>{img.remove();done()};a.oncancel=a.onfinish}
+function markAdded(btn,html,ms){if(!btn)return;btn.classList.add('added');if(!btn.dataset.orig)btn.dataset.orig=btn.innerHTML;btn.innerHTML=html;if(ms){clearTimeout(btn._t);btn._t=setTimeout(()=>resetAdded(btn),ms)}}
+function resetAdded(btn){if(!btn||!btn.classList.contains('added'))return;btn.classList.remove('added');if(btn.dataset.orig)btn.innerHTML=btn.dataset.orig}
 function subtotal(){return bag.reduce((a,b)=>a+unit(BY[b.id],b.size)*b.qty,0)}
 
 /* ---------- HOME ---------- */
@@ -610,12 +635,12 @@ function openItem(id){st.item=id;st.size='R';st.qty=1;if(location.hash!=='#menu'
 document.addEventListener('click',e=>{
  const t=e.target.closest('button,a');if(!t)return;
  if(t.dataset.open){e.preventDefault();openItem(t.dataset.open);return}
- if(t.dataset.add){add(t.dataset.add,'R');return}
+ if(t.dataset.add){const card=t.closest('.mini,.item');add(t.dataset.add,'R',1,card?card.querySelector('.ph'):t);markAdded(t,'✓',1400);return}
  if(t.dataset.cat){st.cat=t.dataset.cat;st.item=null;if(st.view==='menu')renderMenu();return}
  if(t.hasAttribute('data-back')){st.item=null;renderMenu();return}
- if(t.dataset.size){st.size=t.dataset.size;$$('.size').forEach(b=>{const on=b.dataset.size===st.size;b.classList.toggle('on',on);b.setAttribute('aria-checked',on)});updDetailPrice();return}
- if(t.dataset.qty){st.qty=Math.max(1,Math.min(20,st.qty+ +t.dataset.qty));updDetailPrice();return}
- if(t.hasAttribute('data-addcur')){add(st.item,st.size,st.qty);return}
+ if(t.dataset.size){st.size=t.dataset.size;$$('.size').forEach(b=>{const on=b.dataset.size===st.size;b.classList.toggle('on',on);b.setAttribute('aria-checked',on)});updDetailPrice();resetAdded($('[data-addcur]'));return}
+ if(t.dataset.qty){st.qty=Math.max(1,Math.min(20,st.qty+ +t.dataset.qty));updDetailPrice();resetAdded($('[data-addcur]'));return}
+ if(t.hasAttribute('data-addcur')){add(st.item,st.size,st.qty,$('#viewerSlot'));markAdded(t,'담았어요 ♥ ◇');return}
  if(t.dataset.q!==undefined){const b=bag[+t.dataset.q];b.qty+= +t.dataset.d;if(b.qty<=0)bag.splice(+t.dataset.q,1);saveBag();renderBag();fillThumbs();return}
  if(t.id==='checkout'){toast('데모 사이트라 실제 주문은 되지 않아요. 실제 매장에서는 여기서 결제로 이어져요.');return}
  if(t.dataset.mo){let {y,m}=st.ym;m+= +t.dataset.mo;if(m<0){m=11;y--}if(m>11){m=0;y++}
@@ -770,10 +795,18 @@ const cam=()=>{const c=new C.PerspectiveCamera(26,1,.1,50);c.position.set(0,2.35
  cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,t:e.pointerType};cv.setPointerCapture(e.pointerId);idle=performance.now()});
  cv.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;vel=dx*.01;ry+=vel;if(drag.t==='mouse')rx=Math.max(-.2,Math.min(.35,rx+dy*.005));idle=performance.now()});
  const end=()=>{drag=null;idle=performance.now()};cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
+ /* hover: building follows the cursor (mouse only) */
+ let hover=null,hx=0,hy=0;
+ cv.addEventListener('pointerenter',e=>{if(e.pointerType==='mouse'&&!drag)hover={base:ry,x0:null}});
+ cv.addEventListener('pointermove',e=>{if(!hover||drag||e.pointerType!=='mouse')return;const b=cv.getBoundingClientRect();hx=(e.clientX-b.left)/b.width-.5;hy=(e.clientY-b.top)/b.height-.5;if(hover.x0===null)hover.x0=hx});
+ cv.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'){hover=null;idle=performance.now()}});
+ cv.addEventListener('pointerdown',()=>{hover=null});
+ cv.addEventListener('pointerup',e=>{if(e.pointerType==='mouse')hover={base:ry,x0:null}});
  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
  function loop(t){requestAnimationFrame(loop);if(!ready||cv.offsetParent===null||document.hidden)return;
+  if(hover&&hover.x0!==null&&!drag){const target=hover.base+(hx-hover.x0)*Math.PI*1.6;ry+=(target-ry)*.08;rx+=((-hy*.5)-rx)*.08;vel=0;idle=t}
   const w=cv.clientWidth,h=cv.clientHeight,pr=r.getPixelRatio();if(w&&h&&(cv.width!==Math.round(w*pr)||cv.height!==Math.round(h*pr))){r.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}
-  if(!drag){vel*=.94;ry+=vel;if(!reduce&&t-idle>2500)ry+=.0035;rx*=.97}
+  if(!drag&&!hover){vel*=.94;ry+=vel;if(!reduce&&t-idle>2500)ry+=.0035;rx*=.97}
   if(!reduce)bob.position.y=Math.sin(t/1000)*.04;
   pivot.rotation.set(rx,ry,0);r.render(sc,cam)}
  requestAnimationFrame(loop);

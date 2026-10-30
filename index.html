@@ -99,6 +99,7 @@ img{max-width:100%}
 .stage.is3d .bwrap{opacity:0;pointer-events:none;transition:opacity .8s ease}
 .stage .spin-hint{position:absolute;right:4%;bottom:5%;font-family:var(--f-display);font-style:italic;font-size:16px;color:var(--ink-2);opacity:0;transition:opacity .6s;z-index:3;pointer-events:none}
 .stage.is3d .spin-hint{opacity:1}
+.stage.is3d .stage-cap{display:none}
 .stage-cap{position:absolute;left:4%;bottom:5%;font-family:var(--f-script);font-size:24px;color:var(--brown);transform:rotate(-4deg)}
 
 /* right panels */
@@ -378,7 +379,7 @@ img.pending{background:radial-gradient(closest-side,var(--line),transparent);bor
       </div>
       <canvas class="stage3d" id="stage3d" aria-label="카페 오늘 3D 모델 — 드래그해서 돌려보세요"></canvas>
       <div class="stage-cap">come on in ↗</div>
-      <div class="spin-hint">move or drag to turn the café ↻</div>
+      <div class="spin-hint">drag to turn the café</div>
     </div>
 
     <div class="right" id="rightA"></div>
